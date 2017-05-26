@@ -13,6 +13,7 @@ rosrun struckRos struckRos src/struck/config.txt
 
 
 ==================================   ABOUT  ==================================
+
 A ROS topic "/struckRos_bb" will be created to publish information of the bounding box. The information is an array of float64 number. Array size is 4;
 
 Msgs Type: std_msgs::Float64MultiArray
