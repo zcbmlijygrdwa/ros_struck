@@ -5,7 +5,11 @@ A ROS version of struck tracking
 
 ==================================   USAGE  ==================================
 
-Download the package, unzip the file and rename the folder to "struck". Move the folder under catkin_ws/src/
+Go to catkin_ws/src:
+
+
+git clone https://github.com/zcbmlijygrdwa/ros_struck.git
+
 
 Go to "catkin_ws/" and run:
 
@@ -19,8 +23,7 @@ After building the package:
 source devel/setup.bash
 
 
-rosrun struckRos struckRos src/struck/config.txt
-
+rosrun struckRos struckRos src/ros_struck/config.txt
 
 
 ==================================   ABOUT  ==================================
