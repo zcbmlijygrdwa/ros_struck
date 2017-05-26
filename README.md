@@ -5,6 +5,12 @@ A ROS version of struck tracking
 
 ==================================   USAGE  ==================================
 
+Download the package, unzip the file and rename the folder to "struck". Move the folder under catkin_ws/src/
+
+Go to "catkin_ws/" and run:
+catkin_make
+
+
 After building the package:
 
 source devel/setup.bash
