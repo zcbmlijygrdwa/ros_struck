@@ -47,16 +47,20 @@
 #include<ros/ros.h> //ros标准库头文件
 #include<iostream> //C++标准输入输出库
 /*
-  cv_bridge中包含CvBridge库
-*/
+   cv_bridge中包含CvBridge库
+ */
 #include<cv_bridge/cv_bridge.h> 
 /*
-  ROS图象类型的编码函数
-*/
+   ROS图象类型的编码函数
+ */
 #include<sensor_msgs/image_encodings.h> 
+#include "std_msgs/String.h"
+#include "std_msgs/Float64MultiArray.h"
+
+
 /*
    image_transport 头文件用来在ROS系统中的话题上发布和订阅图象消息
-*/
+ */
 #include<image_transport/image_transport.h> 
 
 //OpenCV2标准头文件
@@ -66,7 +70,7 @@
 #include <opencv2/features2d/features2d.hpp>
 
 
- 
+
 #include "Tracker.h"
 #include "Config.h"
 
@@ -83,38 +87,6 @@ static const int kLiveBoxWidth = 80;
 static const int kLiveBoxHeight = 80;
 
 
-static const std::string INPUT = "Input"; //定义输入窗口名称
-static const std::string OUTPUT = "Output"; //定义输出窗口名称
-
-int num_gt = 0;
-float tmp_prec=0, tmp_recall=0, tmp_Fscore=0;
-char info[20];
-clock_t start, finish;
-double duration;
-
-
-Mat intri_mat = (Mat_<float>(3,3) << 770.9496,         0,  618.1421,
-                                             0,  770.3580,  370.6686,
-                                             0,         0,    1.0000);
-
-Mat left_frame, middle_frame, right_frame, frame, frame_temp, frameGrey, out_img, left_rgb, middle_rgb, right_rgb;
-Mat prev_frame, cur_frame, post_frame, mask, mask_g, mask_v;
-vector<Point2f> matching_point1, matching_point2;
-vector<Point2f> lpoint, mpoint, rpoint;
-vector<Mat> H;
-
-Mat h1, h2, f1, f2;
-float med1, med2, med_scc;
-vector<float> epi_dist;
-vector<Point2f> pre_point;
-vector<Mat> forward_H, backward_H, q_frame, q_rgb;
-Mat H1, H2, H3, H4, H5, H6, H7, H8, tmpH, fF, bF;
-
-bool flag=1;
-float alpha = 0.6;
-int frameH,frameW;
-double fps;
-
 
 
 //定义一个转换的类
@@ -130,6 +102,77 @@ void rectangle(Mat& rMat, const FloatRect& rRect, const Scalar& rColour)
 
 int main(int argc, char* argv[])
 {
+
+	/**
+	 * The ros::init() function needs to see argc and argv so that it can perform
+	 * any ROS arguments and name remapping that were provided at the command line.
+	 * For programmatic remappings you can use a different version of init() which takes
+	 * remappings directly, but for most command-line programs, passing argc and argv is
+	 * the easiest way to do it.  The third argument to init() is the name of the node.
+	 *
+	 * You must call one of the versions of ros::init() before using any other
+	 * part of the ROS system.
+	 */
+	ros::init(argc, argv, "talker");
+
+
+	/**
+	 * NodeHandle is the main access point to communications with the ROS system.
+	 * The first NodeHandle constructed will fully initialize this node, and the last
+	 * NodeHandle destructed will close down the node.
+	 */
+	ros::NodeHandle n;
+
+
+	/**
+	 * The advertise() function is how you tell ROS that you want to
+	 * publish on a given topic name. This invokes a call to the ROS
+	 * master node, which keeps a registry of who is publishing and who
+	 * is subscribing. After this advertise() call is made, the master
+	 * node will notify anyone who is trying to subscribe to this topic name,
+	 * and they will in turn negotiate a peer-to-peer connection with this
+	 * node.  advertise() returns a Publisher object which allows you to
+	 * publish messages on that topic through a call to publish().  Once
+	 * all copies of the returned Publisher object are destroyed, the topic
+	 * will be automatically unadvertised.
+	 *
+	 * The second parameter to advertise() is the size of the message queue
+	 * used for publishing messages.  If messages are published more quickly
+	 * than we can send them, the number here specifies how many messages to
+	 * buffer up before throwing some away.
+	 */
+	ros::Publisher chatter_pub = n.advertise<std_msgs::Float64MultiArray>("struckRos_bb", 1000);
+
+	ros::Rate loop_rate(10);
+
+
+	int count = 0;
+	std_msgs::Float64MultiArray msg;
+	msg.data.resize(4);  
+
+/*
+	//========== ros publish loop ===========
+	int count = 0;
+	std_msgs::Float64MultiArray msg;
+	msg.data.resize(3);  
+	while (ros::ok())
+	{
+		msg.data[0] = count;
+		msg.data[1] = count/2;
+		msg.data[2] = count*count;   
+
+		chatter_pub.publish(msg);
+
+		ros::spinOnce();
+
+		loop_rate.sleep();
+		++count;
+	}
+
+
+	//========== end of  ros publish loop ===========
+*/
+
 	// read config file
 	string configPath = "config.txt";
 	if (argc > 1)
@@ -138,13 +181,13 @@ int main(int argc, char* argv[])
 	}
 	Config conf(configPath);
 	cout << conf << endl;
-	
+
 	if (conf.features.size() == 0)
 	{
 		cout << "error: no features specified in config" << endl;
 		return EXIT_FAILURE;
 	}
-	
+
 	ofstream outFile;
 	if (conf.resultsPath != "")
 	{
@@ -155,19 +198,19 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 		}
 	}
-	
+
 	// if no sequence specified then use the camera
 	bool useCamera = (conf.sequenceName == "");
-	
+
 	VideoCapture cap;
-	
+
 	int startFrame = -1;
 	int endFrame = -1;
 	FloatRect initBB;
 	string imgFormat;
 	float scaleW = 1.f;
 	float scaleH = 1.f;
-	
+
 	if (useCamera)
 	{
 		if (!cap.open(0))
@@ -203,16 +246,16 @@ int main(int argc, char* argv[])
 			cout << "error: could not parse sequence frames file" << endl;
 			return EXIT_FAILURE;
 		}
-		
+
 		imgFormat = conf.sequenceBasePath+"/"+conf.sequenceName+"/imgs/img%05d.png";
-		
+
 		// read first frame to get size
 		char imgPath[256];
 		sprintf(imgPath, imgFormat.c_str(), startFrame);
 		Mat tmp = cv::imread(imgPath, 0);
 		scaleW = (float)conf.frameWidth/tmp.cols;
 		scaleH = (float)conf.frameHeight/tmp.rows;
-		
+
 		// read init box from ground truth file
 		string gtFilePath = conf.sequenceBasePath+"/"+conf.sequenceName+"/"+conf.sequenceName+"_gt.txt";
 		ifstream gtFile(gtFilePath.c_str(), ios::in);
@@ -235,15 +278,15 @@ int main(int argc, char* argv[])
 		}
 		initBB = FloatRect(xmin*scaleW, ymin*scaleH, width*scaleW, height*scaleH);
 	}
-	
-	
-	
+
+
+
 	Tracker tracker(conf);
 	if (!conf.quietMode)
 	{
 		namedWindow("result");
 	}
-	
+
 	Mat result(conf.frameHeight, conf.frameWidth, CV_8UC3);
 	bool paused = false;
 	bool doInitialise = false;
@@ -287,31 +330,58 @@ int main(int argc, char* argv[])
 			}
 			resize(frameOrig, frame, Size(conf.frameWidth, conf.frameHeight));
 			cvtColor(frame, result, CV_GRAY2RGB);
-		
+
 			if (frameInd == startFrame)
 			{
 				tracker.Initialise(frame, initBB);
 			}
 		}
-		
+
 		if (tracker.IsInitialised())
 		{
 			tracker.Track(frame);
-			
+
 			if (!conf.quietMode && conf.debugMode)
 			{
 				tracker.Debug();
 			}
-			
+
 			rectangle(result, tracker.GetBB(), CV_RGB(0, 255, 0));
-			
+
+			if (ros::ok())
+			{
+				const FloatRect& bb = tracker.GetBB();
+				/**
+				 * This is a message object. You stuff it with data, and then publish it.
+				 */
+				msg.data[0] = bb.XMin()/scaleW;
+				msg.data[1] = bb.YMin()/scaleH;
+				msg.data[2] = bb.Width()/scaleW;   
+				msg.data[3] = bb.Height()/scaleH;   
+
+				/**
+				 * The publish() function is how you send messages. The parameter
+				 * is the message object. The type of this object must agree with the type
+				 * given as a template parameter to the advertise<>() call, as was done
+				 * in the constructor above.
+				 */
+				chatter_pub.publish(msg);
+
+			//	ros::spinOnce();
+
+				loop_rate.sleep();
+				++count;
+			}
+
+
+
 			if (outFile)
 			{
 				const FloatRect& bb = tracker.GetBB();
 				outFile << bb.XMin()/scaleW << "," << bb.YMin()/scaleH << "," << bb.Width()/scaleW << "," << bb.Height()/scaleH << endl;
 			}
 		}
-		
+
 		if (!conf.quietMode)
 		{
 			imshow("result", result);
@@ -338,11 +408,11 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-	
+
 	if (outFile.is_open())
 	{
 		outFile.close();
 	}
-	
+
 	return EXIT_SUCCESS;
 }

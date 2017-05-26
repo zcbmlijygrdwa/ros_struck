@@ -2,7 +2,7 @@
 quietMode = 0
 
 # debug mode enables additional drawing and visualization.
-debugMode = 1
+debugMode = 0
 
 # base path for video sequences.
 sequenceBasePath = sequences

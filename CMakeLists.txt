@@ -5,6 +5,12 @@ project(struckRos)
 set(CMAKE_MODULE_PATH ${CMAKE_HOME_DIRECTORY}/cmake ${CMAKE_MODULE_PATH})
 
 
+
+find_package(catkin REQUIRED cmake_modules)
+find_package(Eigen REQUIRED)
+find_package(OpenCV REQUIRED)
+
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -17,9 +23,6 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 
-find_package(catkin REQUIRED cmake_modules)
-find_package(Eigen REQUIRED)
-find_package(OpenCV REQUIRED)
 
 
 ###################################
