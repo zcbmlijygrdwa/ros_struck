@@ -4,7 +4,7 @@ project(struckRos)
 
 set(CMAKE_MODULE_PATH ${CMAKE_HOME_DIRECTORY}/cmake ${CMAKE_MODULE_PATH})
 
-
+set(CMAKE_BUILD_TYPE "Release")
 
 find_package(catkin REQUIRED cmake_modules)
 find_package(Eigen REQUIRED)
